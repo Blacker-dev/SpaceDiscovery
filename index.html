@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Space Discovery Museum | AR</title>
+  <meta name="description" content="An interactive marker-based augmented reality space museum exhibit." />
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.7/aframe/build/aframe-ar.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, sans-serif; overflow: hidden; background: #07111f; }
+    #status {
+      position: fixed; z-index: 10; top: 14px; left: 50%; transform: translateX(-50%);
+      width: min(92vw, 520px); padding: 12px 16px; border-radius: 14px;
+      color: #fff; background: #8b2635; text-align: center; font-weight: 700;
+      box-shadow: 0 8px 24px #0005; transition: background .2s ease;
+    }
+    #hint {
+      position: fixed; z-index: 10; bottom: 16px; left: 50%; transform: translateX(-50%);
+      width: min(92vw, 520px); padding: 10px 14px; border-radius: 12px;
+      color: #eaf5ff; background: #07111fcc; text-align: center; font-size: 13px;
+    }
+    a-scene { position: fixed; inset: 0; }
+  </style>
+  <script>
+   
+    AFRAME.registerComponent('colour-tap', {
+      init: function () {
+        const colours = ['#ff5b6e', '#ffd166', '#4dd4ac', '#65a8ff', '#c792ea'];
+        let index = 0;
+        this.el.addEventListener('click', () => {
+          index = (index + 1) % colours.length;
+          this.el.setAttribute('color', colours[index]);
+          this.el.setAttribute('material', 'color', colours[index]);
+          const hint = document.querySelector('#hint');
+          hint.textContent = 'Sphere colour changed! Click again to try another colour.';
+        });
+      }
+    });
+
+   
+    AFRAME.registerComponent('grow-tap', {
+      init: function () {
+        let grown = false;
+        this.el.addEventListener('click', () => {
+          grown = !grown;
+          this.el.setAttribute('animation__scale', {
+            property: 'scale',
+            from: grown ? '1 1 1' : '1.8 1.8 1.8',
+            to: grown ? '1.8 1.8 1.8' : '1 1 1',
+            dur: 450,
+            easing: 'easeOutElastic'
+          });
+        });
+      }
+    });
+
+    
+    AFRAME.registerComponent('marker-status', {
+      init: function () {
+        const banner = document.querySelector('#status');
+        this.el.addEventListener('markerFound', () => {
+          banner.textContent = 'MARKER FOUND — EXHIBIT ACTIVE';
+          banner.style.background = '#147d55';
+        });
+        this.el.addEventListener('markerLost', () => {
+          banner.textContent = 'MARKER NOT FOUND — POINT CAMERA AT HIRO';
+          banner.style.background = '#8b2635';
+        });
+      }
+    });
+  </script>
+</head>
+<body>
+  <div id="status">MARKER NOT FOUND — POINT CAMERA AT HIRO</div>
+  <div id="hint">CLICK the pink sphere: change colour · CLICK the purple crystal: grow / shrink</div>
+
+  <a-scene
+    embedded
+    renderer="logarithmicDepthBuffer: true; precision: mediump"
+    vr-mode-ui="enabled: false"
+    loading-screen="enabled: false"
+    arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best;">
+
+    <a-assets>
+      <a-asset-item id="rocketModel" src="./assets/explorer-rocket.glb"></a-asset-item>
+    </a-assets>
+
+    <a-marker preset="hiro" marker-status>
+      <!-- Exhibit platform -->
+      <a-box position="0 0.08 0" width="2.2" height="0.16" depth="1.5"
+             color="#182b46" material="metalness: 0.45; roughness: 0.35"></a-box>
+
+      <!-- Primitive 1: animated rotating display ring -->
+      <a-torus position="0 0.95 0" radius="0.62" radius-tubular="0.025"
+               color="#4dd4ff" rotation="90 0 0"
+               animation="property: rotation; to: 90 360 0; loop: true; dur: 6500; easing: linear">
+      </a-torus>
+
+      <!-- TAPPABLE SPHERE: tap to cycle colour; bounces up and down -->
+      <a-sphere class="clickable" colour-tap position="-0.55 0.65 0.15" radius="0.22"
+                color="#ff5b6e" material="emissive: #ff5b6e; emissiveIntensity: 0.35"
+                animation="property: position; from: -0.55 0.55 0.15; to: -0.55 0.88 0.15; dir: alternate; loop: true; dur: 1100; easing: easeInOutSine">
+      </a-sphere>
+      <a-text value="TAP: CHANGE COLOUR" position="-1.02 0.30 0.15"
+              align="center" width="1.7" color="#ff9aa5" side="double"></a-text>
+
+      <!-- BEACON: slides left and right instead of rotating -->
+      <a-cylinder position="0.65 0.48 0.12" radius="0.12" height="0.72"
+                  color="#ffd166" material="metalness: 0.35"
+                  animation="property: position; from: 0.48 0.48 0.12; to: 0.82 0.48 0.12; dir: alternate; loop: true; dur: 1900; easing: easeInOutSine">
+      </a-cylinder>
+
+      <!-- TAPPABLE CRYSTAL: tap to grow/shrink; gently pulses while idle -->
+      <a-octahedron class="clickable" grow-tap position="0.55 0.45 -0.38"
+                    radius="0.24" color="#b58cff"
+                    material="emissive: #6841a5; emissiveIntensity: 0.25">
+      </a-octahedron>
+      <a-text value="TAP: GROW / SHRINK" position="0.16 0.18 -0.38"
+              align="center" width="1.7" color="#d7baff" side="double"></a-text>
+
+      <!-- Original GLB model: rises and falls instead of only rotating -->
+      <a-entity gltf-model="#rocketModel" position="0 0.45 -0.05"
+                scale="0.48 0.48 0.48"
+                animation="property: position; from: 0 0.35 -0.05; to: 0 0.75 -0.05; dir: alternate; loop: true; dur: 2200; easing: easeInOutSine">
+      </a-entity>
+
+     
+      <a-text value="SPACE DISCOVERY MUSEUM"
+              position="-0.95 1.55 0.02" align="center"
+              width="3.0" color="#ffffff" side="double"></a-text>
+      <a-text value="TAP THE OBJECTS"
+              position="-0.55 0.28 0.76" align="center"
+              width="2.0" color="#4dd4ff" side="double"></a-text>
+    </a-marker>
+
+    <a-entity camera cursor="rayOrigin: mouse; fuse: false"
+              raycaster="objects: .clickable; far: 20">
+    </a-entity>
+  </a-scene>
+</body>
+</html>
